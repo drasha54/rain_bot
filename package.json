@@ -1,0 +1,9 @@
+{
+  "name": "kyoto-yoshida-rain-slack-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Google Apps Script rain forecast notifier for Kyoto Yoshida",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}
