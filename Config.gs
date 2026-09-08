@@ -5,6 +5,7 @@
 var CONFIG = Object.freeze({
   RAIN_THRESHOLD: 0.1,
 
+  MORNING_TRIGGER_HOUR: 8,
   MORNING_START_HOUR: 8,
   FORECAST_END_HOUR: 21,
 
@@ -24,7 +25,17 @@ var CONFIG = Object.freeze({
   LOCATION_NAME: '吉田付近',
   TIMEZONE: 'Asia/Tokyo',
 
-  OPEN_METEO_ENDPOINT: 'https://api.open-meteo.com/v1/forecast',
+  MET_NORWAY_ENDPOINT:
+    'https://api.met.no/weatherapi/locationforecast/2.0/compact',
+  // MET Norway requires an identifiable User-Agent. Keep a working contact
+  // URL here if this repository is moved or renamed.
+  MET_NORWAY_USER_AGENT:
+    'rain_bot/1.0 github.com/drasha54/rain_bot',
+  MET_NORWAY_CONTACT_URL:
+    'https://github.com/drasha54/rain_bot',
+  MET_NORWAY_ATTRIBUTION:
+    '天気予報データ: <https://api.met.no/|MET Norway> ' +
+    '（<https://creativecommons.org/licenses/by/4.0/|CC BY 4.0>、Botで抽出・整形）',
   YAHOO_WEATHER_ENDPOINT: 'https://map.yahooapis.jp/weather/V1/place',
   YAHOO_ATTRIBUTION:
     'Webサービス by Yahoo! JAPAN （https://developer.yahoo.co.jp/sitemap/）',

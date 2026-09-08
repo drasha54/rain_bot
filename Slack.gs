@@ -26,7 +26,7 @@ function buildMorningMessage_(events) {
     events.map(function (event) {
       return '・' + formatEventRange_(event) +
         '（最大 ' + formatPrecipitation_(event.maxPrecipitation) + ' mm/h）';
-    }).join('\n');
+    }).join('\n') + '\n\n' + CONFIG.MET_NORWAY_ATTRIBUTION;
 }
 
 function buildForecastChangeMessage_(changes) {
@@ -37,13 +37,14 @@ function buildForecastChangeMessage_(changes) {
     });
     return '☔ 雨の降り始めが早まりました\n\n' +
       CONFIG.LOCATION_NAME + 'では、\n' +
-      starts.join('、') + 'から雨になる予報に変わりました。';
+      starts.join('、') + 'から雨になる予報に変わりました。\n\n' +
+      CONFIG.MET_NORWAY_ATTRIBUTION;
   }
 
   return '☔ 雨予報に変わりました\n\n' +
     CONFIG.LOCATION_NAME + 'では、\n' +
     formatEventRanges_(changes.map(function (change) { return change.event; })) +
-    'に雨の予報です。';
+    'に雨の予報です。\n\n' + CONFIG.MET_NORWAY_ATTRIBUTION;
 }
 
 function buildNowcastMessage_(event) {

@@ -146,7 +146,7 @@ function setupTriggers() {
   deleteRainBotTriggers();
 
   ScriptApp.newTrigger('runMorningCheck')
-    .timeBased().atHour(7).nearMinute(0).everyDays(1)
+    .timeBased().atHour(CONFIG.MORNING_TRIGGER_HOUR).nearMinute(0).everyDays(1)
     .inTimezone(CONFIG.TIMEZONE).create();
 
   var slots = [
@@ -184,14 +184,48 @@ function deleteRainBotTriggers() {
   });
 }
 
-/** Manual setup check: fetch both weather APIs without posting to Slack. */
+/** Manual setup check: fetch enabled weather APIs without posting to Slack. */
 function testWeatherApis() {
   var now = new Date();
   var currentHour = Number(Utilities.formatDate(now, CONFIG.TIMEZONE, 'H'));
-  var forecast = fetchHourlyForecast_(now, Math.min(currentHour, CONFIG.FORECAST_END_HOUR));
+  var forecastDate = now;
+  var startHour = Math.max(currentHour, CONFIG.MORNING_START_HOUR);
+  if (currentHour > CONFIG.FORECAST_END_HOUR) {
+    forecastDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    startHour = CONFIG.MORNING_START_HOUR;
+  }
+  var forecast = fetchHourlyForecast_(forecastDate, startHour);
   var nowcast = CONFIG.NOWCAST_ENABLED ?
     fetchNowcastRainEvent_(now) : {disabled: true};
-  console.log(JSON.stringify({hourly: forecast, nowcastRainEvent: nowcast}, null, 2));
+  console.log(JSON.stringify({
+    forecastDate: formatDateKey_(forecastDate),
+    hourly: forecast,
+    nowcastRainEvent: nowcast
+  }, null, 2));
+}
+
+/** Schedules one non-posting API check through the same time-trigger path as production. */
+function scheduleAutomaticWeatherApiTest() {
+  deleteAutomaticWeatherApiTestTriggers_();
+  ScriptApp.newTrigger('testAutomaticWeatherApi')
+    .timeBased().after(60 * 1000).create();
+  console.log('Scheduled one automatic weather API test. It will run after at least 1 minute.');
+}
+
+function testAutomaticWeatherApi() {
+  try {
+    testWeatherApis();
+  } finally {
+    deleteAutomaticWeatherApiTestTriggers_();
+  }
+}
+
+function deleteAutomaticWeatherApiTestTriggers_() {
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (trigger.getHandlerFunction() === 'testAutomaticWeatherApi') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
 }
 
 /** Manual setup check: posts one clearly marked test message to Slack. */

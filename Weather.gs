@@ -1,27 +1,42 @@
 /**
- * Fetches today's hourly precipitation forecast from Open-Meteo.
+ * Fetches today's hourly precipitation forecast from MET Norway.
  * The result is a map such as {"2026-09-04T16:00": 0.4}.
  */
 function fetchHourlyForecast_(now, startHour) {
   var query = [
-    'latitude=' + encodeURIComponent(CONFIG.TARGET_LAT),
-    'longitude=' + encodeURIComponent(CONFIG.TARGET_LON),
-    'hourly=precipitation',
-    'timezone=' + encodeURIComponent(CONFIG.TIMEZONE),
-    'forecast_days=1'
+    'lat=' + encodeURIComponent(formatMetNorwayCoordinate_(CONFIG.TARGET_LAT)),
+    'lon=' + encodeURIComponent(formatMetNorwayCoordinate_(CONFIG.TARGET_LON))
   ].join('&');
 
-  var payload = fetchJson_('Open-Meteo', CONFIG.OPEN_METEO_ENDPOINT + '?' + query);
-  if (!payload.hourly || !Array.isArray(payload.hourly.time) ||
-      !Array.isArray(payload.hourly.precipitation) ||
-      payload.hourly.time.length !== payload.hourly.precipitation.length) {
-    throw makeApiError_('Open-Meteo', null, 'Unexpected hourly forecast response');
+  var payload = fetchJson_(
+    'MET Norway',
+    CONFIG.MET_NORWAY_ENDPOINT + '?' + query,
+    {
+      'User-Agent': CONFIG.MET_NORWAY_USER_AGENT,
+      Referer: CONFIG.MET_NORWAY_CONTACT_URL
+    }
+  );
+  if (!payload.properties || !Array.isArray(payload.properties.timeseries)) {
+    throw makeApiError_('MET Norway', null, 'Unexpected hourly forecast response');
   }
 
   var dateKey = formatDateKey_(now);
   var forecast = {};
-  payload.hourly.time.forEach(function (timeKey, index) {
-    var normalizedKey = normalizeHourKey_(timeKey);
+  payload.properties.timeseries.forEach(function (item) {
+    if (!item || !item.time || !item.data || !item.data.next_1_hours ||
+        !item.data.next_1_hours.details) {
+      return;
+    }
+
+    var forecastTime = new Date(item.time);
+    if (!Number.isFinite(forecastTime.getTime())) {
+      return;
+    }
+    var normalizedKey = Utilities.formatDate(
+      forecastTime,
+      CONFIG.TIMEZONE,
+      "yyyy-MM-dd'T'HH:mm"
+    );
     if (normalizedKey.substring(0, 10) !== dateKey) {
       return;
     }
@@ -31,25 +46,44 @@ function fetchHourlyForecast_(now, startHour) {
       return;
     }
 
-    var precipitation = Number(payload.hourly.precipitation[index]);
+    var precipitation = Number(
+      item.data.next_1_hours.details.precipitation_amount
+    );
     if (Number.isFinite(precipitation)) {
       forecast[normalizedKey] = precipitation;
     }
   });
 
   if (Object.keys(forecast).length === 0) {
-    throw makeApiError_('Open-Meteo', null, 'No hourly forecast was returned for the requested period');
+    throw makeApiError_(
+      'MET Norway',
+      null,
+      'No hourly forecast was returned for the requested period'
+    );
   }
   return forecast;
 }
 
-function fetchJson_(apiName, url) {
+function formatMetNorwayCoordinate_(value) {
+  var coordinate = Number(value);
+  if (!Number.isFinite(coordinate)) {
+    throw makeApiError_('Configuration', null, 'Invalid target coordinate: ' + value);
+  }
+  // MET Norway rejects coordinates with more than four decimal places.
+  return String(Math.round(coordinate * 10000) / 10000);
+}
+
+function fetchJson_(apiName, url, extraHeaders) {
   var response;
+  var headers = {Accept: 'application/json'};
+  Object.keys(extraHeaders || {}).forEach(function (name) {
+    headers[name] = extraHeaders[name];
+  });
   try {
     response = UrlFetchApp.fetch(url, {
       method: 'get',
       muteHttpExceptions: true,
-      headers: {Accept: 'application/json'}
+      headers: headers
     });
   } catch (error) {
     throw makeApiError_(apiName, null, error && error.message ? error.message : String(error));
@@ -191,10 +225,6 @@ function formatEventRanges_(events) {
 
 function formatPrecipitation_(precipitation) {
   return (Math.round(Number(precipitation) * 10) / 10).toFixed(1);
-}
-
-function normalizeHourKey_(value) {
-  return String(value).substring(0, 13) + ':00';
 }
 
 function formatTimeFromKey_(key) {

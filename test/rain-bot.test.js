@@ -165,6 +165,8 @@ test('formats user-facing morning and nowcast wording', () => {
   assert.match(message, /☔ 今日の雨予報/);
   assert.match(message, /・08:00〜11:00頃（最大 1\.2 mm\/h）/);
   assert.match(message, /・12:00〜22:00頃（最大 3\.8 mm\/h）/);
+  assert.match(message, /MET Norway/);
+  assert.match(message, /CC BY 4\.0/);
   assert.doesNotMatch(message, /傘を持っていく/);
   assert.equal(bot.formatMinutesUntil_(28), '約30分後');
   assert.equal(bot.formatMinutesUntil_(4), 'まもなく');
@@ -182,20 +184,38 @@ test('calculates maximum precipitation separately for each morning event', () =>
   ]);
 });
 
-test('parses and filters an Open-Meteo hourly response', () => {
+test('parses UTC timestamps and filters a MET Norway hourly response', () => {
   context.UrlFetchApp = {
-    fetch(url) {
-      assert.match(url, /latitude=35\.0262/);
-      assert.match(url, /timezone=Asia%2FTokyo/);
+    fetch(url, options) {
+      assert.match(url, /api\.met\.no\/weatherapi\/locationforecast\/2\.0\/compact/);
+      assert.match(url, /lat=35\.0262/);
+      assert.match(url, /lon=135\.7808/);
+      assert.equal(options.headers['User-Agent'],
+        'rain_bot/1.0 github.com/drasha54/rain_bot');
+      assert.equal(options.headers.Referer,
+        'https://github.com/drasha54/rain_bot');
       return {
         getResponseCode: () => 200,
         getContentText: () => JSON.stringify({
-          hourly: {
-            time: [
-              '2026-09-04T14:00', '2026-09-04T15:00',
-              '2026-09-04T21:00', '2026-09-04T22:00'
-            ],
-            precipitation: [0.8, 0, 0.2, 1.0]
+          properties: {
+            timeseries: [
+              {
+                time: '2026-09-04T05:00:00Z',
+                data: {next_1_hours: {details: {precipitation_amount: 0.8}}}
+              },
+              {
+                time: '2026-09-04T06:00:00Z',
+                data: {next_1_hours: {details: {precipitation_amount: 0}}}
+              },
+              {
+                time: '2026-09-04T12:00:00Z',
+                data: {next_1_hours: {details: {precipitation_amount: 0.2}}}
+              },
+              {
+                time: '2026-09-04T13:00:00Z',
+                data: {next_1_hours: {details: {precipitation_amount: 1.0}}}
+              }
+            ]
           }
         })
       };
